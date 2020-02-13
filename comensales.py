@@ -6,7 +6,8 @@ import logging
 logging.basicConfig(format='%(asctime)s.%(msecs)03d [%(threadName)s] - %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 
 comensales = 23
-platos = 6
+platos = 3
+platosDisponibles = platos
 
 class Cocinero(threading.Thread):
   def __init__(self):
@@ -18,13 +19,18 @@ class Cocinero(threading.Thread):
     global comensales
     global platos
     while (True):
-      for i in range(platos):
+      # print('while cocinero')
+      if(platosDisponibles==0):
+        # print('acquire cocinero')
+        cocinero.release()
+        cocinero.acquire()
+        try:
+          platosDisponibles = platos
+          logging.info('Reponiendo los platos...')
+        finally:
+          comensal.release()
+      else:
         comensal.release()
-      time.sleep(0.25)
-      cocinero.acquire()
-      platosDisponibles = platos
-      logging.info('Reponiendo los platos...')
-
 
 class Comensal(threading.Thread):
   def __init__(self, numero):
@@ -34,12 +40,15 @@ class Comensal(threading.Thread):
   def run(self):
     global platosDisponibles
     comensal.acquire()
-    platosDisponibles -= 1
-    logging.info(f'¡Qué rico! Quedan {platosDisponibles} platos')
+    if(platosDisponibles>0):
+      try:
+        platosDisponibles -= 1
+        logging.info(f'¡Qué rico! Quedan {platosDisponibles} platos')
+      finally:
+        comensal.release()
 
-platosDisponibles = platos
-comensal = threading.Semaphore(0)
-cocinero = threading.Semaphore(round((comensales/platosDisponibles))-1)
+comensal = threading.Semaphore(platos)
+cocinero = threading.Semaphore(1)
 Cocinero().start()
 
 for i in range(comensales):
