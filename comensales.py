@@ -12,8 +12,10 @@ class Cocinero(threading.Thread):
   def run(self):
     global platosDisponibles
     while (True):
-      logging.info('Reponiendo los platos...')
+      semaforo.acquire()
       platosDisponibles = 3
+      logging.info('Reponiendo los platos...')
+      semaforoComensal.release()#libero un plato
 
 class Comensal(threading.Thread):
   def __init__(self, numero):
@@ -22,13 +24,17 @@ class Comensal(threading.Thread):
 
   def run(self):
     global platosDisponibles
+    semaforoComensal.acquire()
     platosDisponibles -= 1
     logging.info(f'¡Qué rico! Quedan {platosDisponibles} platos')
+    semaforo.release()
 
+semaforoComensal = threading.Semaphore(4)
+semaforo = threading.Semaphore(0)
 platosDisponibles = 3
+
 
 Cocinero().start()
 
-for i in range(5):
+for i in range(15):
   Comensal(i).start()
-
