@@ -1,13 +1,8 @@
-
 import threading
 import time
 import logging
 
 logging.basicConfig(format='%(asctime)s.%(msecs)03d [%(threadName)s] - %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
-
-comensales = 23
-platos = 3
-platosDisponibles = platos
 
 class Cocinero(threading.Thread):
   def __init__(self):
@@ -16,21 +11,14 @@ class Cocinero(threading.Thread):
 
   def run(self):
     global platosDisponibles
-    global comensales
-    global platos
+
     while (True):
-      # print('while cocinero')
-      if(platosDisponibles==0):
-        # print('acquire cocinero')
-        cocinero.release()
-        cocinero.acquire()
-        try:
-          platosDisponibles = platos
-          logging.info('Reponiendo los platos...')
-        finally:
-          comensal.release()
-      else:
-        comensal.release()
+      semaCoci.acquire()
+      try:
+        logging.info('Reponiendo los platos...')
+        platosDisponibles = 3
+      finally:
+        semaPlato.release()
 
 class Comensal(threading.Thread):
   def __init__(self, numero):
@@ -39,17 +27,29 @@ class Comensal(threading.Thread):
 
   def run(self):
     global platosDisponibles
-    comensal.acquire()
-    if(platosDisponibles>0):
-      try:
-        platosDisponibles -= 1
-        logging.info(f'¡Qué rico! Quedan {platosDisponibles} platos')
-      finally:
-        comensal.release()
+    
+    semaPlato.acquire()
+    try:
+      while platosDisponibles == 0:
+      # if platosDisponibles == 0: # el intento fallido en clase.
+        semaCoci.release()
+        semaPlato.acquire()
+      self.comer()
+    finally:
+        semaPlato.release()
 
-comensal = threading.Semaphore(platos)
-cocinero = threading.Semaphore(1)
+  def comer(self):
+    global platosDisponibles
+    platosDisponibles -= 1
+    logging.info(f'¡Qué rico! Quedan {platosDisponibles} platos')
+
+
+semaPlato = threading.Semaphore(1)
+semaCoci = threading.Semaphore(0)
+
+platosDisponibles = 3
+
 Cocinero().start()
 
-for i in range(comensales):
+for i in range(35):
   Comensal(i).start()
